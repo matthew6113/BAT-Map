@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bay Area Historic Transit Map (1920s-1940s)</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+        #map {
+            height: 100vh;
+            width: 100vw;
+        }
+        .legend {
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.2);
+            line-height: 24px;
+            font-size: 14px;
+        }
+        .legend-title {
+            font-weight: bold;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+        .legend-item {
+            margin: 5px 0;
+        }
+        .legend-line {
+            display: inline-block;
+            width: 30px;
+            height: 3px;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+        /* Editable style variables */
+        :root {
+            --muni-color: #E31937;
+            --market-st-color: #D4145A;
+            --key-system-color: #1E88E5;
+            --interurban-color: #7B1FA2;
+            --line-weight: 3;
+            --station-size: 6;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+
+    <script>
+        // Initialize map centered on Bay Area
+        const map = L.map('map').setView([37.7749, -122.2194], 10);
+
+        // Add OpenStreetMap tile layer
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Historic Transit Data (1920s-1940s Peak Era)
+        // San Francisco Municipal Railway Routes
+        const muniRoutes = [
+            // J Church Line
+            {coords: [[37.7067, -122.4708], [37.7498, -122.4265]], name: "J Church", type: "muni"},
+            // K Ingleside Line
+            {coords: [[37.7185, -122.4568], [37.7498, -122.4265]], name: "K Ingleside", type: "muni"},
+            // L Taraval Line
+            {coords: [[37.7427, -122.5066], [37.7498, -122.4265]], name: "L Taraval", type: "muni"},
+            // M Ocean View Line
+            {coords: [[37.7230, -122.4690], [37.7498, -122.4265]], name: "M Ocean View", type: "muni"},
+            // N Judah Line
+            {coords: [[37.7605, -122.5101], [37.7498, -122.4265]], name: "N Judah", type: "muni"},
+            // B Geary Line (Historic)
+            {coords: [[37.7817, -122.5133], [37.7863, -122.4079]], name: "B Geary", type: "muni"},
+            // C Geary Line (Historic)
+            {coords: [[37.7817, -122.5000], [37.7863, -122.4079]], name: "C Geary", type: "muni"}
+        ];
+
+        // Market Street Railway Routes (Private, pre-1944)
+        const marketStreetRoutes = [
+            // Mission Street Line
+            {coords: [[37.7089, -122.4397], [37.7933, -122.3984]], name: "Mission St Line", type: "market"},
+            // Potrero Line
+            {coords: [[37.7576, -122.4027], [37.7863, -122.4079]], name: "Potrero Line", type: "market"},
+            // Valencia Line
+            {coords: [[37.7031, -122.4210], [37.7863, -122.4079]], name: "Valencia Line", type: "market"},
+            // Haight Street Line
+            {coords: [[37.7722, -122.4480], [37.7863, -122.4079]], name: "Haight St Line", type: "market"},
+            // Castro Line
+            {coords: [[37.7625, -122.4350], [37.7863, -122.4079]], name: "Castro Line", type: "market"},
+            // Union-Stockton Line
+            {coords: [[37.7985, -122.4102], [37.7863, -122.4079]], name: "Union-Stockton", type: "market"}
+        ];
+
+        // Key System Routes (East Bay)
+        const keySystemRoutes = [
+            // Transbay service to SF (via Bay Bridge, 1939-1958)
+            {coords: [[37.8044, -122.2712], [37.7933, -122.3984]], name: "Key System Transbay", type: "key"},
+            // Berkeley Line
+            {coords: [[37.8715, -122.2730], [37.8044, -122.2712]], name: "Berkeley Line", type: "key"},
+            // Oakland-Piedmont Line
+            {coords: [[37.8272, -122.2322], [37.8044, -122.2712]], name: "Oakland-Piedmont", type: "key"},
+            // Alameda Line
+            {coords: [[37.7655, -122.2416], [37.8044, -122.2712]], name: "Alameda Line", type: "key"},
+            // San Leandro Line
+            {coords: [[37.7249, -122.1561], [37.8044, -122.2712]], name: "San Leandro Line", type: "key"},
+            // East 14th Street Line
+            {coords: [[37.7758, -122.2248], [37.8044, -122.2712]], name: "East 14th St", type: "key"}
+        ];
+
+        // Southern Pacific Interurban Lines
+        const interurbanRoutes = [
+            // Oakland-San Jose Line (via Niles Canyon)
+            {coords: [[37.8044, -122.2712], [37.3382, -121.8863]], name: "Oakland-San Jose", type: "interurban"},
+            // East Shore & Suburban Railway (Oakland-Richmond)
+            {coords: [[37.8044, -122.2712], [37.9358, -122.3477]], name: "East Shore Line", type: "interurban"},
+            // Peninsula Commute (SF-San Jose via Bayshore)
+            {coords: [[37.7933, -122.3984], [37.3382, -121.8863]], name: "Peninsula Commute", type: "interurban"}
+        ];
+
+        // Major Stations
+        const majorStations = [
+            {coords: [37.7863, -122.4079], name: "Ferry Building Terminal"},
+            {coords: [37.7498, -122.4265], name: "Twin Peaks Tunnel Portal"},
+            {coords: [37.8044, -122.2712], name: "Key System Oakland Terminal"},
+            {coords: [37.7933, -122.3984], name: "Transbay Terminal"},
+            {coords: [37.8715, -122.2730], name: "Berkeley Terminal"},
+            {coords: [37.3382, -121.8863], name: "San Jose Terminal"}
+        ];
+
+        // Style functions
+        function getLineStyle(type) {
+            const styles = {
+                muni: {color: getComputedStyle(document.documentElement).getPropertyValue('--muni-color').trim() || '#E31937', weight: 3, opacity: 0.8},
+                market: {color: getComputedStyle(document.documentElement).getPropertyValue('--market-st-color').trim() || '#D4145A', weight: 3, opacity: 0.8},
+                key: {color: getComputedStyle(document.documentElement).getPropertyValue('--key-system-color').trim() || '#1E88E5', weight: 3, opacity: 0.8},
+                interurban: {color: getComputedStyle(document.documentElement).getPropertyValue('--interurban-color').trim() || '#7B1FA2', weight: 3, opacity: 0.8}
+            };
+            return styles[type] || {color: '#000', weight: 2, opacity: 0.7};
+        }
+
+        // Draw all routes
+        [...muniRoutes, ...marketStreetRoutes, ...keySystemRoutes, ...interurbanRoutes].forEach(route => {
+            L.polyline(route.coords, getLineStyle(route.type))
+                .bindPopup(`<b>${route.name}</b><br>Type: ${route.type.toUpperCase()}`)
+                .addTo(map);
+        });
+
+        // Draw major stations
+        majorStations.forEach(station => {
+            L.circleMarker(station.coords, {
+                radius: 6,
+                fillColor: '#333',
+                color: '#fff',
+                weight: 2,
+                opacity: 1,
+                fillOpacity: 0.9
+            }).bindPopup(`<b>${station.name}</b>`).addTo(map);
+        });
+
+        // Add legend
+        const legend = L.control({position: 'bottomright'});
+        legend.onAdd = function(map) {
+            const div = L.DomUtil.create('div', 'legend');
+            div.innerHTML = `
+                <div class="legend-title">Historic Transit (1920s-1940s)</div>
+                <div class="legend-item">
+                    <span class="legend-line" style="background: var(--muni-color, #E31937);"></span>
+                    Municipal Railway (Muni)
+                </div>
+                <div class="legend-item">
+                    <span class="legend-line" style="background: var(--market-st-color, #D4145A);"></span>
+                    Market Street Railway
+                </div>
+                <div class="legend-item">
+                    <span class="legend-line" style="background: var(--key-system-color, #1E88E5);"></span>
+                    Key System (East Bay)
+                </div>
+                <div class="legend-item">
+                    <span class="legend-line" style="background: var(--interurban-color, #7B1FA2);"></span>
+                    Interurban Lines
+                </div>
+            `;
+            return div;
+        };
+        legend.addTo(map);
+    </script>
+</body>
+</html>
